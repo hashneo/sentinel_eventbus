@@ -1,0 +1,153 @@
+---
+swagger: '2.0'
+info:
+  description: ''
+  version: '0.0.1'
+  title: 'data'
+  termsOfService: ''
+  contact:
+    name: ''
+    email: 'steven.taylor@me.com'
+  license:
+    name: 'Steven Taylor'
+host: localhost
+basePath: /api
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+
+securityDefinitions:
+  Oauth:
+    type: oauth2
+    scopes:
+      open: no security
+      user: a user
+      admin: admin user
+      system: a system process
+    flow: implicit
+    authorizationUrl: https://my_aouth/
+
+security:
+  - Oauth: []
+
+paths:
+  /health:
+    x-swagger-router-controller: health
+    get:
+      tags:
+        - health
+      operationId: health
+      security:
+        - Oauth:
+            - open
+      parameters:
+        - in: query
+          name: id
+          type: string
+      responses:
+        200:
+          description: health information
+          schema:
+            $ref: '#/definitions/Status'
+
+        default:
+          $ref: '#/responses/Error'
+
+  /eventbus/notifications/register:
+    x-swagger-router-controller: events
+    post:
+      operationId: register
+      security:
+        - Oauth:
+            - user
+      parameters:
+        - in: body
+          name: data
+          required: true
+          schema:
+            $ref: '#/definitions/Registration'
+      responses:
+        200:
+          description: ok
+          schema:
+            type: object
+        default:
+          $ref: '#/responses/Error'
+
+  /eventbus/notify:
+    x-swagger-router-controller: events
+    post:
+      operationId: notify
+      security:
+        - Oauth:
+            - user
+      parameters:
+        - in: body
+          name: data
+          required: true
+          schema:
+            $ref: '#/definitions/Notification'
+      responses:
+        200:
+          description: ok
+          schema:
+            type: object
+        default:
+          $ref: '#/responses/Error'
+
+  /swagger:
+    x-swagger-pipe: swagger_raw
+
+responses:
+
+  Error:
+    description: error
+    schema:
+      $ref: '#/definitions/Error'
+
+definitions:
+
+  Error:
+    required:
+      - code
+      - message
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+
+  Registration:
+    type: object
+    additionalProperties: false
+    properties:
+      url:
+        type: string
+      method:
+        type: string
+      securityKey:
+        type: string
+
+  Notification:
+    type: object
+    additionalProperties: false
+    properties:
+      source:
+        type: string
+      type:
+        type: string
+      eventId:
+        type: string
+      payload:
+        type: object
+
+  Status:
+    type: object
+    additionalProperties: false
+    properties:
+      status:
+        type: string
