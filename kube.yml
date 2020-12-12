@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: sentinel-webhook
+  name: sentinel-eventbus
 spec:
   type: ClusterIP
   ports:
@@ -10,30 +10,30 @@ spec:
     protocol: TCP
     targetPort: 5000
   selector:
-    app: webhook
+    app: eventbus
     context: sentinel
     version: v1
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sentinel-webhook
+  name: sentinel-eventbus
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: webhook
+      app: eventbus
   template:
     metadata:
       labels:
-        app: webhook
+        app: eventbus
         context: sentinel
         version: v1
     spec:
       containers:
       -
         name: app
-        image: docker.io/hashneo/sentinel-webhook-x86_64:latest
+        image: docker.io/hashneo/sentinel-eventbus-x86_64:latest
         imagePullPolicy: Always
         env:
         - name: PORT
@@ -45,7 +45,7 @@ spec:
         - name: NEW_RELIC_ENABLED
           value: "true"
         - name: NEW_RELIC_APP_NAME
-          value: "Sentinel WebSocket"
+          value: "Sentinel EventBus"
         - name: NEW_RELIC_LICENSE_KEY
           value: ""
         ports:

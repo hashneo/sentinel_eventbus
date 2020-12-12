@@ -35,7 +35,7 @@ function EventBus(config) {
 
     this.notify = (data) =>{
         logger.debug(`Event posted -> ${JSON.stringify(data)}`);
-        return messageHandler.post( data.type, data.payload );
+        return messageHandler.post( data.source + '.' + data.type, data.payload );
     };
 
     setInterval( () =>{
