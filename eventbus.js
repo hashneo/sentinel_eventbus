@@ -61,6 +61,71 @@ function EventBus(config) {
 
     }, 5000 );
 
+    let messageQueue = {};
+
+    setInterval( async () =>{
+
+        Object.keys( messageQueue ).forEach( async (k) => {
+
+            let queueMessages = messageQueue[k];
+
+            if ( queueMessages.length > 0 ) {
+                logger.debug(`Queue length '${queueMessages.length}' for endpoint '${k}'`);
+            }
+
+            while(queueMessages.length > 0) {
+
+                let it = queueMessages.shift();
+
+                let endPoint = it.endPoint;
+                let data = it.data;
+
+                const _notify = bent(endPoint.method, 200);
+
+                let url = endPoint.url;
+
+                let headers = {
+                    'content-type': 'application/json',
+                    'x-security-key': endPoint.securityKey
+                };
+
+                let evt = {
+                    source: 'sentinel',
+                    type: 'device.update',
+                    timestamp: new Date().toISOString(),
+                    payload: data,
+                };
+
+                logger.trace(JSON.stringify(evt));
+
+                try {
+                    let res = await _notify(url, evt, headers);
+
+                    if (res.statusCode === 200) {
+                        logger.debug(`Endpoint ${endPoint.url} notified with -> ${JSON.stringify(data)}`);
+                        endPoint.lastNotify = new Date().toISOString();
+                    } else {
+                        queueMessages.unshift(it);
+                        logger.debug(`Endpoint ${endPoint.url} notification failed`);
+                        break;
+                    }
+                }
+                catch(err){
+                    queueMessages.unshift(it);
+                    logger.error('Notify error: ' + err);
+                    break;
+                }
+            }
+/*
+            if ( messageQueue[k].length === 0 )
+                delete messageQueue[k];
+
+ */
+        })
+
+
+    }, 500 );
+
     messageHandler.on('device.update', (data) => {
 
         let endPoints = config.webhook.endpoints || {};
@@ -69,36 +134,10 @@ function EventBus(config) {
 
             let endPoint = endPoints[i];
 
-            const _notify = bent(endPoint.method, 200);
+            if ( messageQueue[endPoint.url] === undefined )
+                messageQueue[endPoint.url] = [];
 
-            let url = endPoint.url;
-
-            let headers = {
-                'content-type': 'application/json',
-                'x-security-key' : endPoint.securityKey
-            };
-
-            let evt = {
-                source : 'sentinel',
-                type : 'device.update',
-                timestamp : new Date().toISOString(),
-                payload : data,
-            };
-
-            logger.trace(JSON.stringify(evt));
-
-            _notify(url, evt, headers)
-                .then((res) => {
-                    if (res.statusCode === 200) {
-                        logger.debug(`Endpoint ${endPoint.url} notified with -> ${JSON.stringify(data)}`);
-                        endPoint.lastNotify = new Date().toISOString();
-                    }else{
-                        logger.debug(`Endpoint ${endPoint.url} notification failed`);
-                    }
-                })
-                .catch((err) => {
-                    logger.error('Notify error: ' + err);
-                });
+            messageQueue[endPoint.url].push( { endPoint : endPoint, data : data } );
         }
     });
 
