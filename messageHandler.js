@@ -57,11 +57,18 @@ function MessageHandler() {
                 }
                 break;
             case 'sentinel.device.insert':
+                // Only from server
+                if ( data.module === 'server'){
+                    if ( global.auth ) {
+                        that.emit('device.insert', data);
+                    }
+                }
+
                 break;
 
             case 'sentinel.device.update':
 
-                // Ignore from server
+                // Only from server
                 if ( data.module === 'server'){
                     if ( global.auth ) {
                         that.emit('device.update', data);

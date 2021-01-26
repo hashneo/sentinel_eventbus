@@ -52,8 +52,10 @@ function EventBus(config) {
 
                 let d = ((now - lastNotify) / 1000) / 3600;
 
-                if (d >= 6)
+                if (d >= 7) {
+                    logger.info(`Endpoint '${endPoint.url}' hasn't responded for 7 days, deleting`);
                     delete endPoints[i];
+                }
             }
         }
 
@@ -78,6 +80,7 @@ function EventBus(config) {
                 let it = queueMessages.shift();
 
                 let endPoint = it.endPoint;
+                let type = it.type;
                 let data = it.data;
 
                 const _notify = bent(endPoint.method, 200);
@@ -91,7 +94,7 @@ function EventBus(config) {
 
                 let evt = {
                     source: 'sentinel',
-                    type: 'device.update',
+                    type: type,
                     timestamp: new Date().toISOString(),
                     payload: data,
                 };
@@ -112,22 +115,16 @@ function EventBus(config) {
                 }
                 catch(err){
                     queueMessages.unshift(it);
-                    logger.error('Notify error: ' + err);
+                    logger.debug('Notify error: ' + err);
                     break;
                 }
             }
-/*
-            if ( messageQueue[k].length === 0 )
-                delete messageQueue[k];
-
- */
         })
 
 
     }, 500 );
 
-    messageHandler.on('device.update', (data) => {
-
+    function addMessage( type, data ){
         let endPoints = config.webhook.endpoints || {};
 
         for (let i in endPoints) {
@@ -137,10 +134,24 @@ function EventBus(config) {
             if ( messageQueue[endPoint.url] === undefined )
                 messageQueue[endPoint.url] = [];
 
-            messageQueue[endPoint.url].push( { endPoint : endPoint, data : data } );
+            messageQueue[endPoint.url].push( { endPoint : endPoint, type: type, data : data } );
+
+            let queueMessages = messageQueue[endPoint.url];
+
+            if ( queueMessages.length > 100 ) {
+                logger.warn(`Queue length > 100 ('${queueMessages.length}') for endpoint '${endPoint.url}'`);
+            }
+
         }
+    }
+
+    messageHandler.on('device.update', (data) => {
+        addMessage( 'device.update', data );
     });
 
+    messageHandler.on('device.insert', (data) => {
+        addMessage( 'device.insert', data );
+    });
 }
 
 module.exports = EventBus;
